@@ -116,6 +116,7 @@ if submitted:
     if not name or not email:
         st.error("Please fill in Name and Email!")
     else:
+
         data = {
             'name': name, 'email': email, 'phone': phone, 'location': location,
             'linkedin': linkedin, 'github': github, 'summary': summary,
