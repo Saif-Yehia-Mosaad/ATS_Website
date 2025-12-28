@@ -3,98 +3,115 @@ from fpdf import FPDF
 import tempfile
 import os
 
-# --- 1. Page Configuration (Modern Dark Theme) ---
+# --- 1. Page Configuration ---
 st.set_page_config(
-    page_title="Resume AI Builder",
-    page_icon="⚡",
+    page_title="Resume AI",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. Custom CSS for "Outlier AI" Look ---
+# --- 2. THEME SETUP (Outlier AI Style) ---
+# هذا الجزء هو المسؤول عن الألوان المتدرجة والشكل الزجاجي
 st.markdown("""
 <style>
-    /* General App Styling */
+    /* 1. Main Background: Gradient similar to Outlier AI (Deep Blue/Purple/Black) */
     .stApp {
-        background-color: #0E1117;
-        color: #FAFAFA;
+        background: rgb(15,23,42);
+        background: linear-gradient(160deg, rgba(15,23,42,1) 0%, rgba(30,27,75,1) 50%, rgba(15,23,42,1) 100%);
         font-family: 'Inter', sans-serif;
     }
 
-    /* Input Fields */
+    /* 2. Containers (Cards) with Glassmorphism */
+    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
+        background-color: rgba(30, 41, 59, 0.4); /* Semi-transparent dark blue */
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 24px;
+        backdrop-filter: blur(10px); /* The frosted glass effect */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    /* 3. Inputs (Clean Dark Grey) */
     .stTextInput input, .stTextArea textarea {
-        background-color: #262730;
-        color: #ffffff;
-        border: 1px solid #41444C;
+        background-color: #0F172A !important;
+        border: 1px solid #334155 !important;
+        color: #E2E8F0 !important;
         border-radius: 8px;
     }
     .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: #4F8BF9;
-        box-shadow: 0 0 0 1px #4F8BF9;
+        border-color: #818CF8 !important; /* Indigo glow focus */
+        box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
     }
 
-    /* Buttons */
-    .stButton button {
-        background-color: #4F8BF9;
+    /* 4. Primary Button (The Gradient Button like the Logo) */
+    .stButton button[kind="primary"] {
+        background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%); /* Indigo to Purple */
         color: white;
         border: none;
-        border-radius: 6px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
+        padding: 12px 24px;
+        font-weight: bold;
+        border-radius: 30px; /* Rounded pill shape */
+        transition: transform 0.2s;
     }
-    .stButton button:hover {
-        background-color: #3a75d9;
-        transform: translateY(-1px);
+    .stButton button[kind="primary"]:hover {
+        transform: scale(1.02);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
     }
 
-    /* Secondary/Delete Buttons */
-    button[kind="secondary"] {
+    /* 5. Secondary Buttons (Add/Edit) */
+    .stButton button[kind="secondary"] {
         background-color: transparent;
-        border: 1px solid #FF4B4B;
-        color: #FF4B4B;
+        border: 1px solid #475569;
+        color: #94A3B8;
+        border-radius: 8px;
     }
-    button[kind="secondary"]:hover {
-        background-color: #FF4B4B22;
-        border-color: #FF4B4B;
-        color: #FF4B4B;
-    }
-
-    /* Cards/Containers */
-    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
-        background-color: #161920;
-        border: 1px solid #30333D;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
+    .stButton button[kind="secondary"]:hover {
+        border-color: #E2E8F0;
+        color: #E2E8F0;
+        background-color: rgba(255,255,255,0.05);
     }
 
-    /* Typography */
+    /* Headers */
     h1, h2, h3 {
-        color: #FFFFFF;
+        color: #F8FAFC !important;
         font-weight: 700;
-        letter-spacing: -0.5px;
     }
-    .block-container {
-        padding-top: 3rem;
-        max-width: 900px;
+    p, label {
+        color: #CBD5E1 !important;
+    }
+
+    /* Custom Header Bar mimicking the screenshot */
+    .custom-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    .logo-circle {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2DD4BF 0%, #8B5CF6 100%); /* Teal to Purple */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        margin-right: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. Session State Initialization ---
+# --- 3. Logic & Session State ---
 keys = ['experience', 'projects', 'education', 'certs', 'skills', 'languages']
 for key in keys:
-    if key not in st.session_state:
-        st.session_state[key] = []
-if 'edit_target' not in st.session_state:
-    st.session_state.edit_target = None
+    if key not in st.session_state: st.session_state[key] = []
+if 'edit_target' not in st.session_state: st.session_state.edit_target = None
 
 
-# --- 4. PDF Logic (Robust) ---
 def clean_text(text):
-    if text:
-        return text.encode('latin-1', 'replace').decode('latin-1')
+    if text: return text.encode('latin-1', 'replace').decode('latin-1')
     return ""
 
 
@@ -136,192 +153,181 @@ class PDF(FPDF):
             self.ln(2)
 
 
-def generate_pdf(personal, data):
+def generate_pdf(p, d):
     pdf = PDF('P', 'mm', 'A4')
     pdf.set_auto_page_break(True, 15)
     pdf.add_page()
-
-    # Header
     pdf.set_font('Times', 'B', 18)
-    pdf.cell(0, 8, clean_text(personal['name'].upper()), 0, 1, 'C')
+    pdf.cell(0, 8, clean_text(p['name'].upper()), 0, 1, 'C')
     pdf.set_font('Times', '', 11)
-    pdf.cell(0, 6, clean_text(f"{personal['location']} | {personal['phone']} | {personal['email']}"), 0, 1, 'C')
-    links = [l for l in [personal['linkedin'], personal['github']] if l]
+    pdf.cell(0, 6, clean_text(f"{p['location']} | {p['phone']} | {p['email']}"), 0, 1, 'C')
+    links = [l for l in [p['linkedin'], p['github']] if l]
     if links: pdf.cell(0, 6, " | ".join([clean_text(l) for l in links]), 0, 1, 'C')
     pdf.ln(6)
-
-    if personal['summary']:
+    if p['summary']:
         pdf.section_title('Professional Summary')
         pdf.set_font('Times', '', 11)
-        pdf.multi_cell(0, 5, clean_text(personal['summary']))
+        pdf.multi_cell(0, 5, clean_text(p['summary']))
 
-    sections = [
-        ('Technical Skills', 'skills', False),
-        ('Professional Experience', 'experience', True),
-        ('Technical Projects', 'projects', True),
-        ('Education', 'education', False),
-        ('Certifications', 'certs', False),
-        ('Languages', 'languages', False)
-    ]
+    sections = [('Technical Skills', 'skills'), ('Professional Experience', 'experience'),
+                ('Technical Projects', 'projects'), ('Education', 'education'),
+                ('Certifications', 'certs'), ('Languages', 'languages')]
 
-    for title, key, is_bullet in sections:
-        if data[key]:
+    for title, key in sections:
+        if d[key]:
             pdf.section_title(title)
-            for item in data[key]:
+            for item in d[key]:
                 if key in ['experience', 'projects']:
                     pdf.add_item(item['title'], item['desc'], True)
                 elif key == 'education':
                     pdf.add_item(item['degree'], item['details'])
                 elif key == 'certs':
                     pdf.add_item(item['name'], item['auth'])
-                elif key in ['skills', 'languages']:
-                    # Skills as bullet list
+                else:
                     pdf.set_font('Times', '', 11)
-                    y = pdf.get_y()
-                    pdf.set_xy(12, y)
+                    y = pdf.get_y();
+                    pdf.set_xy(12, y);
                     pdf.cell(5, 5, chr(149), 0, 0)
-                    pdf.set_xy(17, y)
+                    pdf.set_xy(17, y);
                     pdf.multi_cell(0, 5, clean_text(item['text']))
     return pdf
 
 
-# --- 5. UI Components (Section Manager) ---
-def render_section(key, title, input_label_1, input_label_2=None):
-    # Card Container
-    with st.container(border=True):
-        c_head, c_count = st.columns([0.9, 0.1])
-        c_head.markdown(f"### {title}")
-        c_count.markdown(f"**{len(st.session_state[key])}** Items")
+# --- 4. Render Helper (The Cards) ---
+def render_section_card(key, title, label1, label2=None):
+    # Using container to create the "Glass Card" effect defined in CSS
+    with st.container():
+        c1, c2 = st.columns([0.8, 0.2])
+        c1.markdown(f"### {title}")
 
-        # Check Edit Mode
-        is_editing = (st.session_state.edit_target and st.session_state.edit_target['section'] == key)
-        edit_idx = st.session_state.edit_target['index'] if is_editing else None
+        is_edit = (st.session_state.edit_target and st.session_state.edit_target['section'] == key)
+        idx = st.session_state.edit_target['index'] if is_edit else None
 
-        # Defaults
-        val1, val2 = "", ""
-        if is_editing:
-            item = st.session_state[key][edit_idx]
+        v1, v2 = "", ""
+        if is_edit:
+            item = st.session_state[key][idx]
             if key in ['experience', 'projects']:
-                val1, val2 = item['title'], item['desc']
+                v1, v2 = item['title'], item['desc']
             elif key == 'education':
-                val1, val2 = item['degree'], item['details']
+                v1, v2 = item['degree'], item['details']
             elif key == 'certs':
-                val1, val2 = item['name'], item['auth']
+                v1, v2 = item['name'], item['auth']
             else:
-                val1 = item['text']
+                v1 = item['text']
 
-        # Inputs Grid
-        col1, col2 = st.columns([1, 2] if input_label_2 else [1, 0.01])
-        new_val1 = col1.text_input(input_label_1, value=val1, key=f"in_{key}_1", placeholder="Type here...")
-        new_val2 = ""
-        if input_label_2:
-            new_val2 = col2.text_area(input_label_2, value=val2, height=100, key=f"in_{key}_2",
-                                      placeholder="Details...")
+        # Inputs
+        col_in1, col_in2 = st.columns([1, 2] if label2 else [1, 0.01])
+        nv1 = col_in1.text_input(label1, value=v1, key=f"in_{key}_1", placeholder="Type here...")
+        nv2 = ""
+        if label2:
+            nv2 = col_in2.text_area(label2, value=v2, height=100, key=f"in_{key}_2", placeholder="Details...")
 
-        # Action Buttons
-        b1, b2, _ = st.columns([1, 1, 3])
-        if is_editing:
-            if b1.button("Save Changes", key=f"save_{key}", type="primary"):
+        # Buttons
+        b_col1, b_col2, _ = st.columns([1, 1, 4])
+        if is_edit:
+            if b_col1.button("Save", key=f"sv_{key}", type="primary"):
                 obj = {}
                 if key in ['experience', 'projects']:
-                    obj = {'title': new_val1, 'desc': new_val2}
+                    obj = {'title': nv1, 'desc': nv2}
                 elif key == 'education':
-                    obj = {'degree': new_val1, 'details': new_val2}
+                    obj = {'degree': nv1, 'details': nv2}
                 elif key == 'certs':
-                    obj = {'name': new_val1, 'auth': new_val2}
+                    obj = {'name': nv1, 'auth': nv2}
                 else:
-                    obj = {'text': new_val1}
-                st.session_state[key][edit_idx] = obj
+                    obj = {'text': nv1}
+                st.session_state[key][idx] = obj
                 st.session_state.edit_target = None
                 st.rerun()
-            if b2.button("Cancel", key=f"cancel_{key}"):
+            if b_col2.button("Cancel", key=f"cn_{key}"):
                 st.session_state.edit_target = None
                 st.rerun()
         else:
-            if b1.button("Add Item", key=f"add_{key}"):
-                if new_val1:
+            if b_col1.button("Add", key=f"ad_{key}"):
+                if nv1:
                     obj = {}
                     if key in ['experience', 'projects']:
-                        obj = {'title': new_val1, 'desc': new_val2}
+                        obj = {'title': nv1, 'desc': nv2}
                     elif key == 'education':
-                        obj = {'degree': new_val1, 'details': new_val2}
+                        obj = {'degree': nv1, 'details': nv2}
                     elif key == 'certs':
-                        obj = {'name': new_val1, 'auth': new_val2}
+                        obj = {'name': nv1, 'auth': nv2}
                     else:
-                        obj = {'text': new_val1}
+                        obj = {'text': nv1}
                     st.session_state[key].append(obj)
                     st.rerun()
 
-        # List Display (Minimalist)
+        # Display Items
         if st.session_state[key]:
             st.markdown("---")
             for i, item in enumerate(st.session_state[key]):
-                # Get Title for Display
-                if key in ['experience', 'projects']:
-                    txt = item['title']
-                elif key == 'education':
-                    txt = item['degree']
-                elif key == 'certs':
-                    txt = item['name']
-                else:
-                    txt = item['text']
+                txt = item['title'] if key in ['experience', 'projects'] else \
+                    item['degree'] if key == 'education' else \
+                        item['name'] if key == 'certs' else item['text']
 
-                r1, r2, r3 = st.columns([0.8, 0.1, 0.1])
-                r1.markdown(f"**{i + 1}. {txt}**")
-                if r2.button("✎", key=f"ed_{key}_{i}"):
+                rc1, rc2, rc3 = st.columns([0.85, 0.07, 0.08])
+                rc1.caption(f"{i + 1}. {txt}")  # Using caption for cleaner look
+                if rc2.button("✎", key=f"e_{key}_{i}"):
                     st.session_state.edit_target = {'section': key, 'index': i}
                     st.rerun()
-                if r3.button("✖", key=f"del_{key}_{i}"):
+                if rc3.button("✖", key=f"d_{key}_{i}"):
                     st.session_state[key].pop(i)
-                    if is_editing and edit_idx == i: st.session_state.edit_target = None
+                    if is_edit and idx == i: st.session_state.edit_target = None
                     st.rerun()
+    st.markdown("<br>", unsafe_allow_html=True)  # Spacer between cards
 
 
-# --- 6. Main Layout ---
+# --- 5. Main Layout ---
 
-st.title("⚡ Resume AI Builder")
-st.markdown("Professional, ATS-friendly resumes in seconds.")
+# Header Section with "SY" Gradient Circle (Fake Logo)
+st.markdown("""
+<div class="custom-header">
+    <div class="logo-circle">AI</div>
+    <div>
+        <h1 style="margin:0; font-size: 2rem;">Resume Builder</h1>
+        <p style="margin:0; font-size: 0.9rem; opacity: 0.8;">Create your ATS-friendly profile</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Personal Info Card
-with st.container(border=True):
-    st.subheader("👤 Personal Details")
+# Personal Info (Glass Card)
+with st.container():
+    st.markdown("### 👤 Identity")
     c1, c2, c3 = st.columns(3)
     name = c1.text_input("Full Name", "Saif Eldien Yehia")
     email = c2.text_input("Email")
     phone = c3.text_input("Phone")
-
     c4, c5, c6 = st.columns(3)
     loc = c4.text_input("Location")
-    link = c5.text_input("LinkedIn URL")
-    git = c6.text_input("GitHub URL")
+    link = c5.text_input("LinkedIn")
+    git = c6.text_input("GitHub")
+    summ = st.text_area("Summary", height=80, placeholder="Brief professional summary...")
 
-    summ = st.text_area("Professional Summary", height=80, placeholder="Briefly describe your career highlights...")
+st.markdown("<br>", unsafe_allow_html=True)
 
-# Sections
-render_section('experience', 'Professional Experience', 'Job Title | Company | Date', 'Description (Bullets)')
-render_section('projects', 'Technical Projects', 'Project Name', 'Description (Bullets)')
-render_section('education', 'Education', 'Degree', 'Institution | Date')
-render_section('skills', 'Technical Skills', 'Skill (e.g. Python, SQL)')
-render_section('certs', 'Certifications', 'Certification Name', 'Authority / Date')
-render_section('languages', 'Languages', 'Language (e.g. English: C1)')
+# Content Sections
+render_section_card('experience', 'Experience', 'Job Title | Company | Date', 'Description')
+render_section_card('projects', 'Projects', 'Project Name', 'Description')
+render_section_card('education', 'Education', 'Degree', 'Institution | Date')
+render_section_card('skills', 'Skills', 'Skill Name')
+render_section_card('certs', 'Certifications', 'Name', 'Authority/Date')
+render_section_card('languages', 'Languages', 'Language')
 
-# Generate Action
 st.divider()
-col_gen, _ = st.columns([1, 2])
-if col_gen.button("🚀 GENERATE PDF RESUME", type="primary", use_container_width=True):
+
+# Generate Button (Gradient Style)
+if st.button("✨ GENERATE PDF RESUME", type="primary", use_container_width=True):
     if not name:
-        st.error("Full Name is required!")
+        st.error("Name is required!")
     else:
         p_data = {'name': name, 'email': email, 'phone': phone, 'location': loc, 'linkedin': link, 'github': git,
                   'summary': summ}
         l_data = {k: st.session_state[k] for k in keys}
-
         try:
             pdf = generate_pdf(p_data, l_data)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 pdf.output(tmp.name)
                 with open(tmp.name, "rb") as f:
-                    st.success("Resume built successfully!")
+                    st.success("Resume created successfully!")
                     st.download_button("📥 Download PDF", f, f"{name.replace(' ', '_')}_Resume.pdf", "application/pdf")
             os.unlink(tmp.name)
         except Exception as e:
