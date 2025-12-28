@@ -5,19 +5,22 @@ import os
 
 # --- 1. Page Configuration ---
 st.set_page_config(
-    page_title="Resume AI",
-    page_icon="✨",
+    page_title="Resume AI Builder",
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS STYLING (Professional Theme) ---
+# --- 2. CSS Styling (Professional Dark Theme) ---
 st.markdown("""
 <style>
+    /* Background */
     .stApp {
         background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
         font-family: 'Inter', sans-serif;
     }
+
+    /* Card Styling (Glassmorphism) */
     [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
         background-color: rgba(30, 41, 59, 0.4);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -26,27 +29,37 @@ st.markdown("""
         backdrop-filter: blur(12px);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
+
+    /* Input Fields */
     .stTextInput input, .stTextArea textarea {
         background-color: #0F172A !important;
         border: 1px solid #334155 !important;
         color: #E2E8F0 !important;
         border-radius: 6px;
-        font-size: 14px;
     }
     .stTextInput input:focus, .stTextArea textarea:focus {
         border-color: #6366F1 !important;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
     }
+
+    /* Primary Buttons */
     .stButton button[kind="primary"] {
         background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
         color: white;
         border: none;
-        padding: 10px 24px;
+        padding: 8px 20px;
         border-radius: 6px;
         font-weight: 600;
         text-transform: uppercase;
-        font-size: 12px;
+        font-size: 13px;
+        transition: all 0.2s;
     }
+    .stButton button[kind="primary"]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    }
+
+    /* Secondary Buttons */
     .stButton button[kind="secondary"] {
         background: transparent;
         border: 1px solid #475569;
@@ -54,43 +67,149 @@ st.markdown("""
         border-radius: 6px;
         font-size: 13px;
     }
-    h1, h2, h3, h4 { color: #F8FAFC !important; font-weight: 600; }
-    p, label { color: #94A3B8 !important; font-size: 13px; }
+    .stButton button[kind="secondary"]:hover {
+        border-color: #E2E8F0;
+        color: #E2E8F0;
+    }
 
-    .custom-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 40px;
-    }
-    .logo-circle {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: white;
-        margin-right: 16px;
-        font-size: 18px;
-    }
+    /* Typography */
+    h1, h2, h3, h4 { color: #F8FAFC !important; font-weight: 600; }
+    p, label, span, div { color: #E2E8F0 !important; }
+    .stToast { background-color: #1E293B !important; color: white !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. Session State ---
-keys = ['experience', 'projects', 'education', 'certs', 'skills', 'languages']
-for key in keys:
-    if key not in st.session_state: st.session_state[key] = []
-if 'edit_target' not in st.session_state: st.session_state.edit_target = None
+# --- 3. Session State Initialization ---
+KEYS = ['experience', 'projects', 'education', 'certs', 'skills', 'languages']
+for key in KEYS:
+    if key not in st.session_state:
+        st.session_state[key] = []
+if 'edit_target' not in st.session_state:
+    st.session_state.edit_target = None
 
 
+# --- 4. Logic Helper Functions ---
 def clean_text(text):
-    if text: return text.encode('latin-1', 'replace').decode('latin-1')
+    """Encodes text to Latin-1 to avoid PDF errors with unsupported characters."""
+    if text:
+        return text.encode('latin-1', 'replace').decode('latin-1')
     return ""
 
 
-# --- 4. PDF Generation ---
+# --- 5. CALLBACKS (The Core Stability Fix) ---
+# These functions handle state changes cleanly to prevent Streamlit crashes.
+
+def add_item_callback(section_key):
+    # Keys for input fields
+    k1, k2, k3, k4 = f"t_{section_key}", f"c_{section_key}", f"d_{section_key}", f"desc_{section_key}"
+
+    # Get values safely
+    v1 = st.session_state.get(k1, "").strip()
+    v2 = st.session_state.get(k2, "").strip()
+    v3 = st.session_state.get(k3, "").strip()
+    v4 = st.session_state.get(k4, "").strip()
+
+    # Validation logic
+    valid = False
+    new_item = {}
+
+    if section_key == 'experience' and v1:
+        new_item = {'title': v1, 'company': v2, 'date': v3, 'desc': v4};
+        valid = True
+    elif section_key == 'education' and v1:
+        new_item = {'degree': v1, 'school': v2, 'date': v3};
+        valid = True
+    elif section_key == 'projects' and v1:
+        new_item = {'title': v1, 'date': v3, 'desc': v4};
+        valid = True
+    elif section_key == 'certs' and v1:
+        new_item = {'name': v1, 'authority': v2, 'date': v3};
+        valid = True
+    elif section_key in ['skills', 'languages'] and v1:
+        new_item = {'text': v1};
+        valid = True
+
+    if valid:
+        st.session_state[section_key].append(new_item)
+        # Clear inputs
+        for k in [k1, k2, k3, k4]:
+            if k in st.session_state: st.session_state[k] = ""
+        st.toast(f"Added to {section_key}", icon="✅")
+    else:
+        st.toast("⚠️ Main field cannot be empty!", icon="❌")
+
+
+def save_changes_callback(section_key, index):
+    k1, k2, k3, k4 = f"t_{section_key}", f"c_{section_key}", f"d_{section_key}", f"desc_{section_key}"
+    v1 = st.session_state.get(k1, "").strip()
+    v2 = st.session_state.get(k2, "").strip()
+    v3 = st.session_state.get(k3, "").strip()
+    v4 = st.session_state.get(k4, "").strip()
+
+    new_item = {}
+    if section_key == 'experience':
+        new_item = {'title': v1, 'company': v2, 'date': v3, 'desc': v4}
+    elif section_key == 'education':
+        new_item = {'degree': v1, 'school': v2, 'date': v3}
+    elif section_key == 'projects':
+        new_item = {'title': v1, 'date': v3, 'desc': v4}
+    elif section_key == 'certs':
+        new_item = {'name': v1, 'authority': v2, 'date': v3}
+    else:
+        new_item = {'text': v1}
+
+    st.session_state[section_key][index] = new_item
+    st.session_state.edit_target = None
+
+    # Clear inputs
+    for k in [k1, k2, k3, k4]:
+        if k in st.session_state: st.session_state[k] = ""
+    st.toast("Changes saved successfully!", icon="💾")
+
+
+def cancel_edit_callback(section_key):
+    st.session_state.edit_target = None
+    k1, k2, k3, k4 = f"t_{section_key}", f"c_{section_key}", f"d_{section_key}", f"desc_{section_key}"
+    for k in [k1, k2, k3, k4]:
+        if k in st.session_state: st.session_state[k] = ""
+
+
+def delete_item_callback(section_key, index):
+    st.session_state[section_key].pop(index)
+    # If editing the deleted item, cancel edit
+    if st.session_state.edit_target and st.session_state.edit_target['section'] == section_key and \
+            st.session_state.edit_target['index'] == index:
+        st.session_state.edit_target = None
+    st.toast("Item deleted", icon="🗑️")
+
+
+def edit_mode_callback(section_key, index):
+    st.session_state.edit_target = {'section': section_key, 'index': index}
+    item = st.session_state[section_key][index]
+
+    # Populate inputs
+    if section_key == 'experience':
+        st.session_state[f"t_{section_key}"] = item['title']
+        st.session_state[f"c_{section_key}"] = item['company']
+        st.session_state[f"d_{section_key}"] = item['date']
+        st.session_state[f"desc_{section_key}"] = item['desc']
+    elif section_key == 'education':
+        st.session_state[f"t_{section_key}"] = item['degree']
+        st.session_state[f"c_{section_key}"] = item['school']
+        st.session_state[f"d_{section_key}"] = item['date']
+    elif section_key == 'projects':
+        st.session_state[f"t_{section_key}"] = item['title']
+        st.session_state[f"d_{section_key}"] = item['date']
+        st.session_state[f"desc_{section_key}"] = item['desc']
+    elif section_key == 'certs':
+        st.session_state[f"t_{section_key}"] = item['name']
+        st.session_state[f"c_{section_key}"] = item['authority']
+        st.session_state[f"d_{section_key}"] = item['date']
+    else:
+        st.session_state[f"t_{section_key}"] = item['text']
+
+
+# --- 6. PDF Generator Class ---
 class PDF(FPDF):
     def header(self):
         pass
@@ -98,30 +217,33 @@ class PDF(FPDF):
     def footer(self):
         self.set_y(-15)
         self.set_font('Times', '', 9)
-        self.set_text_color(150)
+        self.set_text_color(128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
     def section_title(self, label):
-        self.ln(6)
+        self.ln(5)
         self.set_font('Times', 'B', 11)
         self.set_text_color(0)
         self.cell(0, 6, label.upper(), 0, 1, 'L')
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(3)
+        self.ln(2)
 
-    def add_item_with_date(self, title, date, subtitle, desc=None, is_bullet=False):
+    def add_item(self, title, date, subtitle, desc=None, is_bullet=False):
         self.set_font('Times', 'B', 10)
         title_w = 140 if date else 190
         self.cell(title_w, 5, clean_text(title), 0, 0, 'L')
+
         if date:
             self.set_font('Times', '', 10)
             self.cell(0, 5, clean_text(date), 0, 1, 'R')
         else:
             self.ln(5)
+
         if subtitle:
             self.set_font('Times', 'I', 10)
             self.cell(0, 5, clean_text(subtitle), 0, 1, 'L')
+
         if desc:
             self.set_font('Times', '', 10)
             if is_bullet:
@@ -138,7 +260,7 @@ class PDF(FPDF):
                 self.multi_cell(0, 5, clean_text(desc))
         self.ln(2)
 
-    def add_simple_item(self, text):
+    def add_simple(self, text):
         self.set_font('Times', '', 10)
         y = self.get_y()
         self.set_xy(12, y)
@@ -147,286 +269,224 @@ class PDF(FPDF):
         self.multi_cell(0, 5, clean_text(text))
 
 
-def generate_pdf(p, d):
+def generate_pdf_file(p, d):
     pdf = PDF('P', 'mm', 'A4')
     pdf.set_auto_page_break(True, 15)
     pdf.add_page()
+
+    # Header
     pdf.set_font('Times', 'B', 16)
     pdf.cell(0, 8, clean_text(p['name'].upper()), 0, 1, 'C')
     pdf.set_font('Times', '', 10)
     pdf.cell(0, 5, clean_text(f"{p['location']} | {p['phone']} | {p['email']}"), 0, 1, 'C')
     links = [l for l in [p['linkedin'], p['github']] if l]
     if links: pdf.cell(0, 5, " | ".join([clean_text(l) for l in links]), 0, 1, 'C')
-    pdf.ln(6)
+    pdf.ln(5)
+
     if p['summary']:
         pdf.section_title('Professional Summary')
         pdf.set_font('Times', '', 10)
         pdf.multi_cell(0, 5, clean_text(p['summary']))
+
     if d['experience']:
         pdf.section_title('Professional Experience')
-        for item in d['experience']: pdf.add_item_with_date(item['title'], item['date'], item['company'], item['desc'],
-                                                            True)
+        for i in d['experience']: pdf.add_item(i['title'], i['date'], i['company'], i['desc'], True)
+
     if d['projects']:
         pdf.section_title('Technical Projects')
-        for item in d['projects']: pdf.add_item_with_date(item['title'], item['date'], None, item['desc'], True)
+        for i in d['projects']: pdf.add_item(i['title'], i['date'], None, i['desc'], True)
+
     if d['education']:
         pdf.section_title('Education')
-        for item in d['education']: pdf.add_item_with_date(item['degree'], item['date'], item['school'], None, False)
+        for i in d['education']: pdf.add_item(i['degree'], i['date'], i['school'], None, False)
+
     if d['certs']:
         pdf.section_title('Certifications')
-        for item in d['certs']: pdf.add_item_with_date(item['name'], item['date'], item['authority'], None, False)
+        for i in d['certs']: pdf.add_item(i['name'], i['date'], i['authority'], None, False)
+
     if d['skills']:
         pdf.section_title('Technical Skills')
-        for item in d['skills']: pdf.add_simple_item(item['text'])
+        for i in d['skills']: pdf.add_simple(i['text'])
+
     if d['languages']:
         pdf.section_title('Languages')
-        for item in d['languages']: pdf.add_simple_item(item['text'])
+        for i in d['languages']: pdf.add_simple(i['text'])
+
     return pdf
 
 
-# --- 5. DETAILED GUI ERRORS ---
+# --- 7. Validation & Dialogs ---
+def get_validation_errors(name, email, data):
+    errs = []
+    if not name.strip(): errs.append("Full Name is required.")
+    if not email.strip(): errs.append("Email Address is required.")
 
-# دالة ذكية تحدد مكان الخطأ بالضبط
-def validate_inputs(name, email, data_dict):
-    errors = []
+    # Check sections content
+    if not any(data.values()):
+        errs.append("Resume is empty! Add at least one Skill, Experience, or Education.")
 
-    # 1. Check Identity
-    if not name.strip():
-        errors.append("<b>Identity:</b> Full Name is missing.")
-    if not email.strip():
-        errors.append("<b>Identity:</b> Email is missing (Required for contact).")
-
-    # 2. Check Experience
-    for i, item in enumerate(data_dict['experience']):
-        idx = i + 1
-        if not item['title'].strip(): errors.append(f"<b>Experience (Item {idx}):</b> Job Title is missing.")
-        if not item['company'].strip(): errors.append(f"<b>Experience (Item {idx}):</b> Company Name is missing.")
-
-    # 3. Check Education
-    for i, item in enumerate(data_dict['education']):
-        idx = i + 1
-        if not item['degree'].strip(): errors.append(f"<b>Education (Item {idx}):</b> Degree is missing.")
-        if not item['school'].strip(): errors.append(f"<b>Education (Item {idx}):</b> Institution Name is missing.")
-
-    # 4. Check Projects
-    for i, item in enumerate(data_dict['projects']):
-        idx = i + 1
-        if not item['title'].strip(): errors.append(f"<b>Projects (Item {idx}):</b> Project Name is missing.")
-
-    # 5. Check Certs
-    for i, item in enumerate(data_dict['certs']):
-        idx = i + 1
-        if not item['name'].strip(): errors.append(
-            f"<b>Certifications (Item {idx}):</b> Certification Name is missing.")
-
-    return errors
+    return errs
 
 
-@st.dialog("⚠️ Action Required")
-def show_validation_dialog(error_list):
-    st.markdown("""
-    <div style='margin-bottom: 15px;'>
-        <p style='color: #E2E8F0 !important; font-size: 15px;'>
-            We found some missing details. Please fix the following to ensure your resume looks professional:
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # عرض الأخطاء بشكل قائمة مرتبة
-    for err in error_list:
+@st.dialog("⚠️ Missing Information")
+def show_error_dialog(errors):
+    st.markdown("<p style='font-size:14px; color:#E2E8F0'>Please fix the following issues to generate your resume:</p>",
+                unsafe_allow_html=True)
+    for err in errors:
         st.markdown(f"""
-        <div style='background: rgba(255, 193, 7, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 4px solid #FFC107; margin-bottom: 8px;'>
-            <span style='color: #E2E8F0; font-size: 14px;'>{err}</span>
+        <div style="background-color:rgba(255, 193, 7, 0.1); border-left:4px solid #FFC107; padding:10px; margin-bottom:8px; border-radius:4px;">
+            <span style="color:#E2E8F0; font-size:14px;">{err}</span>
         </div>
         """, unsafe_allow_html=True)
-
-    if st.button("Got it, I'll fix them", type="primary"):
+    if st.button("Okay, I'll fix it", type="primary"):
         st.rerun()
 
 
 @st.dialog("❌ System Error")
-def show_system_error(e):
-    st.markdown(f"""
-    <div style='background-color: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid #EF4444;'>
-        <p style='color: #EF4444 !important; margin: 0; font-size: 16px; font-weight: bold;'>Generation Failed</p>
-        <p style='color: #E2E8F0 !important; margin-top: 5px;'>An internal error occurred while building the PDF.</p>
-        <p style='color: #94A3B8 !important; font-size: 12px; margin-top: 10px;'>Error Details: {str(e)}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("Close"):
-        st.rerun()
+def show_crash_dialog(e):
+    st.error(f"An unexpected error occurred: {e}")
 
 
-# --- 6. Section Manager ---
-def render_section_manager(key, section_title):
+# --- 8. UI Components ---
+def render_header():
+    col1, col2 = st.columns([0.1, 0.9])
+    with col1:
+        st.markdown("""
+        <div style="width:50px; height:50px; border-radius:12px; background:linear-gradient(135deg, #6366F1, #8B5CF6);
+        display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:20px;">AI</div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.title("Resume Builder")
+        st.caption("Professional, ATS-Optimized, and Error-Free.")
+
+
+def render_section(key, title):
     with st.container():
-        c_head, c_count = st.columns([0.85, 0.15])
-        c_head.markdown(f"### {section_title}")
+        st.subheader(title)
 
-        is_edit = (st.session_state.edit_target and st.session_state.edit_target['section'] == key)
-        idx = st.session_state.edit_target['index'] if is_edit else None
+        is_editing = (st.session_state.edit_target and st.session_state.edit_target['section'] == key)
 
-        defaults = {'f1': '', 'f2': '', 'f3': '', 'f4': ''}
-        if is_edit:
-            item = st.session_state[key][idx]
-            if key == 'experience':
-                defaults = {'f1': item['title'], 'f2': item['company'], 'f3': item['date'], 'f4': item['desc']}
-            elif key == 'projects':
-                defaults = {'f1': item['title'], 'f3': item['date'], 'f4': item['desc']}
-            elif key == 'education':
-                defaults = {'f1': item['degree'], 'f2': item['school'], 'f3': item['date']}
-            elif key == 'certs':
-                defaults = {'f1': item['name'], 'f2': item['authority'], 'f3': item['date']}
-            elif key in ['skills', 'languages']:
-                defaults = {'f1': item['text']}
-
+        # Keys for inputs
         k1, k2, k3, k4 = f"t_{key}", f"c_{key}", f"d_{key}", f"desc_{key}"
 
+        # Input Layout
         if key == 'experience':
-            c1, c2, c3 = st.columns([1.5, 1.5, 1])
-            in_title = c1.text_input("Job Title", value=defaults['f1'], key=k1)
-            in_comp = c2.text_input("Company", value=defaults['f2'], key=k2)
-            in_date = c3.text_input("Date (Optional)", value=defaults['f3'], key=k3)
-            in_desc = st.text_area("Description (Bullets)", value=defaults['f4'], key=k4, height=100)
+            c1, c2, c3 = st.columns([2, 2, 1])
+            c1.text_input("Job Title", key=k1)
+            c2.text_input("Company", key=k2)
+            c3.text_input("Date", key=k3)
+            st.text_area("Description (Bullet points)", key=k4, height=100)
         elif key == 'education':
-            c1, c2, c3 = st.columns([1.5, 1.5, 1])
-            in_deg = c1.text_input("Degree", value=defaults['f1'], key=k1)
-            in_school = c2.text_input("Institution", value=defaults['f2'], key=k2)
-            in_date = c3.text_input("Date (Optional)", value=defaults['f3'], key=k3)
+            c1, c2, c3 = st.columns([2, 2, 1])
+            c1.text_input("Degree", key=k1)
+            c2.text_input("Institution", key=k2)
+            c3.text_input("Date", key=k3)
         elif key == 'projects':
             c1, c2 = st.columns([3, 1])
-            in_title = c1.text_input("Project Name", value=defaults['f1'], key=k1)
-            in_date = c2.text_input("Date (Optional)", value=defaults['f3'], key=k3)
-            in_desc = st.text_area("Description (Bullets)", value=defaults['f4'], key=k4, height=100)
+            c1.text_input("Project Name", key=k1)
+            c2.text_input("Date", key=k3)
+            st.text_area("Description (Bullet points)", key=k4, height=100)
         elif key == 'certs':
-            c1, c2, c3 = st.columns([1.5, 1.5, 1])
-            in_name = c1.text_input("Certification Name", value=defaults['f1'], key=k1)
-            in_auth = c2.text_input("Authority", value=defaults['f2'], key=k2)
-            in_date = c3.text_input("Date (Optional)", value=defaults['f3'], key=k3)
+            c1, c2, c3 = st.columns([2, 2, 1])
+            c1.text_input("Certification Name", key=k1)
+            c2.text_input("Authority", key=k2)
+            c3.text_input("Date", key=k3)
         else:
-            in_text = st.text_input("Item Name", value=defaults['f1'], key=k1)
+            st.text_input("Item Name", key=k1)
 
+        # Buttons
         b1, b2, _ = st.columns([1, 1, 6])
 
-        def clear_inputs():
-            for k in [k1, k2, k3, k4]:
-                if k in st.session_state: st.session_state[k] = ""
-
-        if is_edit:
-            if b1.button("Save Changes", key=f"save_{key}", type="primary"):
-                new_item = {}
-                if key == 'experience':
-                    new_item = {'title': in_title, 'company': in_comp, 'date': in_date, 'desc': in_desc}
-                elif key == 'education':
-                    new_item = {'degree': in_deg, 'school': in_school, 'date': in_date}
-                elif key == 'projects':
-                    new_item = {'title': in_title, 'date': in_date, 'desc': in_desc}
-                elif key == 'certs':
-                    new_item = {'name': in_name, 'authority': in_auth, 'date': in_date}
-                else:
-                    new_item = {'text': in_text}
-                st.session_state[key][idx] = new_item
-                st.session_state.edit_target = None
-                clear_inputs();
-                st.rerun()
-            if b2.button("Cancel", key=f"cancel_{key}", kind="secondary"):
-                st.session_state.edit_target = None
-                clear_inputs();
-                st.rerun()
+        if is_editing:
+            idx = st.session_state.edit_target['index']
+            b1.button("Save Changes", key=f"s_{key}", type="primary", on_click=save_changes_callback, args=(key, idx))
+            b2.button("Cancel", key=f"x_{key}", kind="secondary", on_click=cancel_edit_callback, args=(key,))
         else:
-            if b1.button("Add Item", key=f"add_{key}", type="secondary"):
-                new_item = {}
-                valid = False
-                if key == 'experience' and in_title:
-                    new_item = {'title': in_title, 'company': in_comp, 'date': in_date, 'desc': in_desc}; valid = True
-                elif key == 'education' and in_deg:
-                    new_item = {'degree': in_deg, 'school': in_school, 'date': in_date}; valid = True
-                elif key == 'projects' and in_title:
-                    new_item = {'title': in_title, 'date': in_date, 'desc': in_desc}; valid = True
-                elif key == 'certs' and in_name:
-                    new_item = {'name': in_name, 'authority': in_auth, 'date': in_date}; valid = True
-                elif key in ['skills', 'languages'] and in_text:
-                    new_item = {'text': in_text}; valid = True
-                if valid: st.session_state[key].append(new_item); clear_inputs(); st.rerun()
+            b1.button("Add Item", key=f"a_{key}", type="secondary", on_click=add_item_callback, args=(key,))
 
+        # List Display
         if st.session_state[key]:
             st.markdown("---")
             for i, item in enumerate(st.session_state[key]):
-                display_txt = ""
-                if key == 'experience':
-                    display_txt = f"{item['title']} @ {item['company']}"
-                elif key == 'education':
-                    display_txt = f"{item['degree']}"
-                elif key == 'projects':
-                    display_txt = item['title']
-                elif key == 'certs':
-                    display_txt = item['name']
-                else:
-                    display_txt = item['text']
-                if key not in ['skills', 'languages'] and item.get('date'):
-                    display_txt += f" <span style='color:#64748B; font-size:12px;'>| {item['date']}</span>"
+                # Determine display text
+                txt = item.get('title') or item.get('degree') or item.get('name') or item.get('text')
+                date = item.get('date')
+
+                # HTML styling for list item
+                display_html = f"<div style='font-weight:500; color:#F1F5F9;'>{i + 1}. {txt}</div>"
+                if date:
+                    display_html += f"<div style='font-size:12px; color:#94A3B8; margin-top:-2px;'>{date}</div>"
+
+                # Layout for row
                 r1, r2, r3 = st.columns([0.85, 0.07, 0.08])
-                r1.markdown(f"**{i + 1}.** {display_txt}", unsafe_allow_html=True)
-                if r2.button("✎", key=f"e_{key}_{i}"): st.session_state.edit_target = {'section': key,
-                                                                                       'index': i}; st.rerun()
-                if r3.button("✖", key=f"d_{key}_{i}"): st.session_state[key].pop(i); st.rerun()
+                r1.markdown(display_html, unsafe_allow_html=True)
+                r2.button("✎", key=f"ed_{key}_{i}", on_click=edit_mode_callback, args=(key, i))
+                r3.button("✖", key=f"del_{key}_{i}", on_click=delete_item_callback, args=(key, i))
 
 
-# --- 7. Main UI ---
-st.markdown("""
-<div class="custom-header">
-    <div class="logo-circle">AI</div>
-    <div>
-        <h1 style="margin:0; font-size: 24px;">Resume Builder</h1>
-        <p style="margin:0; font-size: 14px; opacity: 0.8;">Professional & ATS-Friendly</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-with st.container():
-    st.markdown("### 👤 Identity")
-    c1, c2, c3 = st.columns(3)
-    name = c1.text_input("Full Name", "")
-    email = c2.text_input("Email", "")
-    phone = c3.text_input("Phone", "")
-    c4, c5, c6 = st.columns(3)
-    loc = c4.text_input("Location", "")
-    link = c5.text_input("LinkedIn", "")
-    git = c6.text_input("GitHub", "")
-    summ = st.text_area("Summary", height=80)
+# --- 9. Main Application Flow ---
+render_header()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-render_section_manager('experience', 'Professional Experience')
-render_section_manager('projects', 'Technical Projects')
-render_section_manager('education', 'Education')
-render_section_manager('skills', 'Technical Skills')
-render_section_manager('certs', 'Certifications')
-render_section_manager('languages', 'Languages')
+# Identity Section
+with st.container():
+    st.subheader("👤 Identity")
+    c1, c2, c3 = st.columns(3)
+    name = c1.text_input("Full Name")
+    email = c2.text_input("Email")
+    phone = c3.text_input("Phone")
+
+    c4, c5, c6 = st.columns(3)
+    loc = c4.text_input("Location")
+    link = c5.text_input("LinkedIn")
+    git = c6.text_input("GitHub")
+
+    summ = st.text_area("Professional Summary", height=80)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Content Sections
+render_section('experience', 'Professional Experience')
+render_section('projects', 'Technical Projects')
+render_section('education', 'Education')
+render_section('certs', 'Certifications')
+render_section('skills', 'Technical Skills')
+render_section('languages', 'Languages')
 
 st.divider()
 
+# Generate Button
 if st.button("✨ GENERATE PDF RESUME", type="primary", use_container_width=True):
-    # Collect Lists
-    l_data = {k: st.session_state[k] for k in keys}
+    # Collect data
+    lists_data = {k: st.session_state[k] for k in KEYS}
 
-    # 1. Run Validation
-    errors = validate_inputs(name, email, l_data)
+    # Validation
+    errors = get_validation_errors(name, email, lists_data)
 
     if errors:
-        # 2. Show Specific GUI Dialog
-        show_validation_dialog(errors)
+        show_error_dialog(errors)
     else:
-        # 3. Generate if Valid
-        p_data = {'name': name, 'email': email, 'phone': phone, 'location': loc, 'linkedin': link, 'github': git,
-                  'summary': summ}
+        # Generation
         try:
-            pdf = generate_pdf(p_data, l_data)
+            profile_data = {
+                'name': name, 'email': email, 'phone': phone,
+                'location': loc, 'linkedin': link, 'github': git, 'summary': summ
+            }
+
+            pdf = generate_pdf_file(profile_data, lists_data)
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 pdf.output(tmp.name)
                 with open(tmp.name, "rb") as f:
-                    st.toast("Resume generated successfully!", icon="✅")
-                    st.download_button("📥 Download PDF", f, f"{name.replace(' ', '_')}_Resume.pdf", "application/pdf")
+                    st.toast("Resume generated successfully!", icon="🚀")
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=f,
+                        file_name=f"{name.replace(' ', '_')}_Resume.pdf",
+                        mime="application/pdf"
+                    )
             os.unlink(tmp.name)
+
         except Exception as e:
-            show_system_error(e)
+            show_crash_dialog(e)
