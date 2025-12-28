@@ -123,6 +123,7 @@ if submitted:
             'education': education, 'certs': certs, 'languages': languages
         }
 
+
         # إنشاء ملف مؤقت للتحميل
         pdf = generate_pdf(data)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
