@@ -657,8 +657,8 @@ def main():
     with st.container():
         st.subheader("👤 Personal Information")
         c1, c2, c3 = st.columns(3)
-        name = c1.text_input("Full Name", placeholder="e.g. Saif Eldien")
-        email = c2.text_input("Email", placeholder="e.g. saif@example.com")
+        name = c1.text_input("Full Name", placeholder="e.g. Name")
+        email = c2.text_input("Email", placeholder="e.g. Email@example.com")
         phone = c3.text_input("Phone", placeholder="e.g. +20 123 456 7890")
 
         c4, c5, c6 = st.columns(3)
