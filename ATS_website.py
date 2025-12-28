@@ -11,13 +11,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS STYLING (Professional Theme) ---
+# --- 2. CSS STYLING (Professional Dark Theme) ---
 st.markdown("""
 <style>
+    /* Main Background: Deep Professional Dark */
     .stApp {
         background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
         font-family: 'Inter', sans-serif;
     }
+
+    /* Glassmorphism Cards */
     [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
         background-color: rgba(30, 41, 59, 0.4);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -26,6 +29,8 @@ st.markdown("""
         backdrop-filter: blur(12px);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
+
+    /* Inputs: Clean, No Borders until focus */
     .stTextInput input, .stTextArea textarea {
         background-color: #0F172A !important;
         border: 1px solid #334155 !important;
@@ -34,9 +39,11 @@ st.markdown("""
         font-size: 14px;
     }
     .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: #6366F1 !important;
+        border-color: #6366F1 !important; /* Indigo Focus */
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
     }
+
+    /* Buttons */
     .stButton button[kind="primary"] {
         background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
         color: white;
@@ -44,6 +51,7 @@ st.markdown("""
         padding: 10px 24px;
         border-radius: 6px;
         font-weight: 600;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
         font-size: 12px;
     }
@@ -54,9 +62,16 @@ st.markdown("""
         border-radius: 6px;
         font-size: 13px;
     }
+    .stButton button[kind="secondary"]:hover {
+        border-color: #E2E8F0;
+        color: #E2E8F0;
+    }
+
+    /* Typography */
     h1, h2, h3, h4 { color: #F8FAFC !important; font-weight: 600; }
     p, label { color: #94A3B8 !important; font-size: 13px; }
 
+    /* Header Style */
     .custom-header {
         display: flex;
         align-items: center;
@@ -74,6 +89,7 @@ st.markdown("""
         color: white;
         margin-right: 16px;
         font-size: 18px;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -90,7 +106,7 @@ def clean_text(text):
     return ""
 
 
-# --- 4. PDF Generation ---
+# --- 4. PDF Generation Engine ---
 class PDF(FPDF):
     def header(self):
         pass
@@ -114,14 +130,17 @@ class PDF(FPDF):
         self.set_font('Times', 'B', 10)
         title_w = 140 if date else 190
         self.cell(title_w, 5, clean_text(title), 0, 0, 'L')
+
         if date:
             self.set_font('Times', '', 10)
             self.cell(0, 5, clean_text(date), 0, 1, 'R')
         else:
             self.ln(5)
+
         if subtitle:
             self.set_font('Times', 'I', 10)
             self.cell(0, 5, clean_text(subtitle), 0, 1, 'L')
+
         if desc:
             self.set_font('Times', '', 10)
             if is_bullet:
@@ -136,6 +155,7 @@ class PDF(FPDF):
                         self.multi_cell(0, 5, clean_text(cl))
             else:
                 self.multi_cell(0, 5, clean_text(desc))
+
         self.ln(2)
 
     def add_simple_item(self, text):
@@ -151,6 +171,7 @@ def generate_pdf(p, d):
     pdf = PDF('P', 'mm', 'A4')
     pdf.set_auto_page_break(True, 15)
     pdf.add_page()
+
     pdf.set_font('Times', 'B', 16)
     pdf.cell(0, 8, clean_text(p['name'].upper()), 0, 1, 'C')
     pdf.set_font('Times', '', 10)
@@ -158,106 +179,46 @@ def generate_pdf(p, d):
     links = [l for l in [p['linkedin'], p['github']] if l]
     if links: pdf.cell(0, 5, " | ".join([clean_text(l) for l in links]), 0, 1, 'C')
     pdf.ln(6)
+
     if p['summary']:
         pdf.section_title('Professional Summary')
         pdf.set_font('Times', '', 10)
         pdf.multi_cell(0, 5, clean_text(p['summary']))
+
     if d['experience']:
         pdf.section_title('Professional Experience')
-        for item in d['experience']: pdf.add_item_with_date(item['title'], item['date'], item['company'], item['desc'],
-                                                            True)
+        for item in d['experience']:
+            pdf.add_item_with_date(item['title'], item['date'], item['company'], item['desc'], True)
+
     if d['projects']:
         pdf.section_title('Technical Projects')
-        for item in d['projects']: pdf.add_item_with_date(item['title'], item['date'], None, item['desc'], True)
+        for item in d['projects']:
+            pdf.add_item_with_date(item['title'], item['date'], None, item['desc'], True)
+
     if d['education']:
         pdf.section_title('Education')
-        for item in d['education']: pdf.add_item_with_date(item['degree'], item['date'], item['school'], None, False)
+        for item in d['education']:
+            pdf.add_item_with_date(item['degree'], item['date'], item['school'], None, False)
+
     if d['certs']:
         pdf.section_title('Certifications')
-        for item in d['certs']: pdf.add_item_with_date(item['name'], item['date'], item['authority'], None, False)
+        for item in d['certs']:
+            pdf.add_item_with_date(item['name'], item['date'], item['authority'], None, False)
+
     if d['skills']:
         pdf.section_title('Technical Skills')
-        for item in d['skills']: pdf.add_simple_item(item['text'])
+        for item in d['skills']:
+            pdf.add_simple_item(item['text'])
+
     if d['languages']:
         pdf.section_title('Languages')
-        for item in d['languages']: pdf.add_simple_item(item['text'])
+        for item in d['languages']:
+            pdf.add_simple_item(item['text'])
+
     return pdf
 
 
-# --- 5. DETAILED GUI ERRORS ---
-
-# دالة ذكية تحدد مكان الخطأ بالضبط
-def validate_inputs(name, email, data_dict):
-    errors = []
-
-    # 1. Check Identity
-    if not name.strip():
-        errors.append("<b>Identity:</b> Full Name is missing.")
-    if not email.strip():
-        errors.append("<b>Identity:</b> Email is missing (Required for contact).")
-
-    # 2. Check Experience
-    for i, item in enumerate(data_dict['experience']):
-        idx = i + 1
-        if not item['title'].strip(): errors.append(f"<b>Experience (Item {idx}):</b> Job Title is missing.")
-        if not item['company'].strip(): errors.append(f"<b>Experience (Item {idx}):</b> Company Name is missing.")
-
-    # 3. Check Education
-    for i, item in enumerate(data_dict['education']):
-        idx = i + 1
-        if not item['degree'].strip(): errors.append(f"<b>Education (Item {idx}):</b> Degree is missing.")
-        if not item['school'].strip(): errors.append(f"<b>Education (Item {idx}):</b> Institution Name is missing.")
-
-    # 4. Check Projects
-    for i, item in enumerate(data_dict['projects']):
-        idx = i + 1
-        if not item['title'].strip(): errors.append(f"<b>Projects (Item {idx}):</b> Project Name is missing.")
-
-    # 5. Check Certs
-    for i, item in enumerate(data_dict['certs']):
-        idx = i + 1
-        if not item['name'].strip(): errors.append(
-            f"<b>Certifications (Item {idx}):</b> Certification Name is missing.")
-
-    return errors
-
-
-@st.dialog("⚠️ Action Required")
-def show_validation_dialog(error_list):
-    st.markdown("""
-    <div style='margin-bottom: 15px;'>
-        <p style='color: #E2E8F0 !important; font-size: 15px;'>
-            We found some missing details. Please fix the following to ensure your resume looks professional:
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # عرض الأخطاء بشكل قائمة مرتبة
-    for err in error_list:
-        st.markdown(f"""
-        <div style='background: rgba(255, 193, 7, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 4px solid #FFC107; margin-bottom: 8px;'>
-            <span style='color: #E2E8F0; font-size: 14px;'>{err}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    if st.button("Got it, I'll fix them", type="primary"):
-        st.rerun()
-
-
-@st.dialog("❌ System Error")
-def show_system_error(e):
-    st.markdown(f"""
-    <div style='background-color: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid #EF4444;'>
-        <p style='color: #EF4444 !important; margin: 0; font-size: 16px; font-weight: bold;'>Generation Failed</p>
-        <p style='color: #E2E8F0 !important; margin-top: 5px;'>An internal error occurred while building the PDF.</p>
-        <p style='color: #94A3B8 !important; font-size: 12px; margin-top: 10px;'>Error Details: {str(e)}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("Close"):
-        st.rerun()
-
-
-# --- 6. Section Manager ---
+# --- 5. Dynamic Form Component ---
 def render_section_manager(key, section_title):
     with st.container():
         c_head, c_count = st.columns([0.85, 0.15])
@@ -280,6 +241,7 @@ def render_section_manager(key, section_title):
             elif key in ['skills', 'languages']:
                 defaults = {'f1': item['text']}
 
+        # Keys for auto-clearing
         k1, k2, k3, k4 = f"t_{key}", f"c_{key}", f"d_{key}", f"desc_{key}"
 
         if key == 'experience':
@@ -288,21 +250,25 @@ def render_section_manager(key, section_title):
             in_comp = c2.text_input("Company", value=defaults['f2'], key=k2)
             in_date = c3.text_input("Date (Optional)", value=defaults['f3'], key=k3)
             in_desc = st.text_area("Description (Bullets)", value=defaults['f4'], key=k4, height=100)
+
         elif key == 'education':
             c1, c2, c3 = st.columns([1.5, 1.5, 1])
             in_deg = c1.text_input("Degree", value=defaults['f1'], key=k1)
             in_school = c2.text_input("Institution", value=defaults['f2'], key=k2)
             in_date = c3.text_input("Date (Optional)", value=defaults['f3'], key=k3)
+
         elif key == 'projects':
             c1, c2 = st.columns([3, 1])
             in_title = c1.text_input("Project Name", value=defaults['f1'], key=k1)
             in_date = c2.text_input("Date (Optional)", value=defaults['f3'], key=k3)
             in_desc = st.text_area("Description (Bullets)", value=defaults['f4'], key=k4, height=100)
+
         elif key == 'certs':
             c1, c2, c3 = st.columns([1.5, 1.5, 1])
             in_name = c1.text_input("Certification Name", value=defaults['f1'], key=k1)
             in_auth = c2.text_input("Authority", value=defaults['f2'], key=k2)
             in_date = c3.text_input("Date (Optional)", value=defaults['f3'], key=k3)
+
         else:
             in_text = st.text_input("Item Name", value=defaults['f1'], key=k1)
 
@@ -327,27 +293,36 @@ def render_section_manager(key, section_title):
                     new_item = {'text': in_text}
                 st.session_state[key][idx] = new_item
                 st.session_state.edit_target = None
-                clear_inputs();
+                clear_inputs()
                 st.rerun()
             if b2.button("Cancel", key=f"cancel_{key}", kind="secondary"):
                 st.session_state.edit_target = None
-                clear_inputs();
+                clear_inputs()
                 st.rerun()
         else:
             if b1.button("Add Item", key=f"add_{key}", type="secondary"):
                 new_item = {}
                 valid = False
                 if key == 'experience' and in_title:
-                    new_item = {'title': in_title, 'company': in_comp, 'date': in_date, 'desc': in_desc}; valid = True
+                    new_item = {'title': in_title, 'company': in_comp, 'date': in_date, 'desc': in_desc};
+                    valid = True
                 elif key == 'education' and in_deg:
-                    new_item = {'degree': in_deg, 'school': in_school, 'date': in_date}; valid = True
+                    new_item = {'degree': in_deg, 'school': in_school, 'date': in_date};
+                    valid = True
                 elif key == 'projects' and in_title:
-                    new_item = {'title': in_title, 'date': in_date, 'desc': in_desc}; valid = True
+                    new_item = {'title': in_title, 'date': in_date, 'desc': in_desc};
+                    valid = True
                 elif key == 'certs' and in_name:
-                    new_item = {'name': in_name, 'authority': in_auth, 'date': in_date}; valid = True
+                    new_item = {'name': in_name, 'authority': in_auth, 'date': in_date};
+                    valid = True
                 elif key in ['skills', 'languages'] and in_text:
-                    new_item = {'text': in_text}; valid = True
-                if valid: st.session_state[key].append(new_item); clear_inputs(); st.rerun()
+                    new_item = {'text': in_text};
+                    valid = True
+
+                if valid:
+                    st.session_state[key].append(new_item)
+                    clear_inputs()
+                    st.rerun()
 
         if st.session_state[key]:
             st.markdown("---")
@@ -363,16 +338,22 @@ def render_section_manager(key, section_title):
                     display_txt = item['name']
                 else:
                     display_txt = item['text']
+
                 if key not in ['skills', 'languages'] and item.get('date'):
                     display_txt += f" <span style='color:#64748B; font-size:12px;'>| {item['date']}</span>"
+
                 r1, r2, r3 = st.columns([0.85, 0.07, 0.08])
                 r1.markdown(f"**{i + 1}.** {display_txt}", unsafe_allow_html=True)
-                if r2.button("✎", key=f"e_{key}_{i}"): st.session_state.edit_target = {'section': key,
-                                                                                       'index': i}; st.rerun()
-                if r3.button("✖", key=f"d_{key}_{i}"): st.session_state[key].pop(i); st.rerun()
+                if r2.button("✎", key=f"e_{key}_{i}"):
+                    st.session_state.edit_target = {'section': key, 'index': i}
+                    st.rerun()
+                if r3.button("✖", key=f"d_{key}_{i}"):
+                    st.session_state[key].pop(i)
+                    if is_edit and idx == i: st.session_state.edit_target = None
+                    st.rerun()
 
 
-# --- 7. Main UI ---
+# --- 6. MAIN UI ---
 st.markdown("""
 <div class="custom-header">
     <div class="logo-circle">AI</div>
@@ -407,26 +388,19 @@ render_section_manager('languages', 'Languages')
 st.divider()
 
 if st.button("✨ GENERATE PDF RESUME", type="primary", use_container_width=True):
-    # Collect Lists
-    l_data = {k: st.session_state[k] for k in keys}
-
-    # 1. Run Validation
-    errors = validate_inputs(name, email, l_data)
-
-    if errors:
-        # 2. Show Specific GUI Dialog
-        show_validation_dialog(errors)
+    if not name:
+        st.error("Please enter your Full Name in the Identity section.")
     else:
-        # 3. Generate if Valid
         p_data = {'name': name, 'email': email, 'phone': phone, 'location': loc, 'linkedin': link, 'github': git,
                   'summary': summ}
+        l_data = {k: st.session_state[k] for k in keys}
         try:
             pdf = generate_pdf(p_data, l_data)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 pdf.output(tmp.name)
                 with open(tmp.name, "rb") as f:
-                    st.toast("Resume generated successfully!", icon="✅")
+                    st.success("Resume generated successfully!")
                     st.download_button("📥 Download PDF", f, f"{name.replace(' ', '_')}_Resume.pdf", "application/pdf")
             os.unlink(tmp.name)
         except Exception as e:
-            show_system_error(e)
+            st.error(f"Error: {e}")
